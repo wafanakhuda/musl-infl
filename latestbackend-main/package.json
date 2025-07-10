@@ -4,8 +4,9 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "ts-node-dev src/index.ts",
-    "build": "tsc",
-    "start": "npx prisma generate && node dist/index.js"
+    "build": "rm -rf dist && tsc && ls -la dist",
+    "start": "node dist/index.js",
+    "postbuild": "ls -la && ls -la dist"
   },
   "dependencies": {
     "@prisma/client": "^6.11.1",
