@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: muslim-influencers-api
+    env: node
+    plan: starter
+    buildCommand: npm install && npx prisma generate
+    startCommand: npm start
