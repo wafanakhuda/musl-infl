@@ -14,16 +14,19 @@ function createToken(user: { id: string; user_type: string }) {
   })
 }
 
-// Full type-safe payload
+// ✅ More flexible registration payload interface
 interface RegisterPayload {
   email: string
   password: string
   full_name: string
-  user_type: "creator"
-  location: string
-  bio: string
+  user_type: "creator" | "brand"
+  location?: string
+  bio?: string
   avatar_url?: string
-  username: string
+  username?: string // Make optional and handle in profile
+  profile?: {
+    username?: string
+  }
   followers?: number
   price_min?: number
   price_max?: number
@@ -32,107 +35,161 @@ interface RegisterPayload {
   gender?: string
 }
 
-// ✅ Register new creator user
+// ✅ Register new user with flexible validation
 export async function registerUser(data: RegisterPayload) {
-  const existing = await prisma.user.findUnique({ where: { email: data.email } })
-  if (existing) throw new Error("Email already registered.")
+  try {
+    console.log("📝 Processing registration for:", data.email)
 
-  const hashed = await bcrypt.hash(data.password, 10)
+    // Check if user already exists
+    const existing = await prisma.user.findUnique({ where: { email: data.email } })
+    if (existing) {
+      throw new Error("Email already registered.")
+    }
 
-  const user = await prisma.user.create({
-    data: {
-      email: data.email,
-      password: hashed,
-      full_name: data.full_name,
-      user_type: data.user_type,
-      location: data.location,
-      bio: data.bio,
-      avatar_url: data.avatar_url,
-      email_verified: false,
-      username: data.username, // ✅ required
-      followers: data.followers,
-      price_min: data.price_min,
-      price_max: data.price_max,
-      niche: data.niche,
-      platforms: data.platforms,
-      gender: data.gender,
-    },
-  })
+    // ✅ Extract username from profile or use fallback
+    const username = data.profile?.username || data.username || `user_${Date.now()}`
+    
+    // ✅ Provide defaults for required fields
+    const location = data.location?.trim() || "Not specified"
+    const bio = data.bio?.trim() || "Content creator on MuslimInfluencers.io"
 
-  const otp = generateOtp()
-  otpStore[data.email] = otp
+    console.log("📝 Creating user with username:", username)
 
-  await sendEmail({
-    to: data.email,
-    subject: "Verify Your Account",
-    text: `Your OTP is ${otp}`,
-  })
+    const hashed = await bcrypt.hash(data.password, 10)
 
-  return {
-    message: "Registration complete. OTP sent.",
-    user: {
-      id: user.id,
-      email: user.email,
-      user_type: user.user_type,
-    },
+    const user = await prisma.user.create({
+      data: {
+        email: data.email.trim(),
+        password: hashed,
+        full_name: data.full_name.trim(),
+        user_type: data.user_type,
+        location: location,
+        bio: bio,
+        avatar_url: data.avatar_url,
+        email_verified: false,
+        username: username, // ✅ Always provide a username
+        followers: data.followers || null,
+        price_min: data.price_min || null,
+        price_max: data.price_max || null,
+        niche: data.niche || null,
+        platforms: data.platforms || [],
+        gender: data.gender || null,
+      },
+    })
+
+    // Generate and store OTP
+    const otp = generateOtp()
+    otpStore[data.email] = otp
+
+    console.log("📧 Sending OTP to:", data.email)
+
+    // Send verification email
+    await sendEmail({
+      to: data.email,
+      subject: "Verify Your MuslimInfluencers.io Account",
+      text: `Welcome to MuslimInfluencers.io!\n\nYour verification code is: ${otp}\n\nThis code will expire in 10 minutes.\n\nIf you didn't create an account, please ignore this email.`,
+    })
+
+    console.log("✅ Registration successful for user:", user.id)
+
+    return {
+      message: "Registration successful. Please check your email for the OTP verification code.",
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        user_type: user.user_type,
+      },
+    }
+  } catch (error: any) {
+    console.error("❌ Registration error:", error.message)
+    throw error
   }
 }
 
 // ✅ Verify email OTP
 export async function verifyOtp(data: { email: string; otp: string }) {
-  const stored = otpStore[data.email]
-  if (!stored || stored !== data.otp) {
-    throw new Error("Invalid or expired OTP.")
-  }
+  try {
+    console.log("🔍 Verifying OTP for:", data.email)
 
-  const existingUser = await prisma.user.findUnique({ where: { email: data.email } })
-  if (!existingUser) throw new Error("User not found")
+    const stored = otpStore[data.email]
+    if (!stored || stored !== data.otp) {
+      console.log("❌ Invalid OTP - Stored:", stored, "Provided:", data.otp)
+      throw new Error("Invalid or expired OTP.")
+    }
 
-  const user = await prisma.user.update({
-    where: { id: existingUser.id },
-    data: { email_verified: true },
-  })
+    const existingUser = await prisma.user.findUnique({ where: { email: data.email } })
+    if (!existingUser) {
+      throw new Error("User not found")
+    }
 
-  delete otpStore[data.email]
+    // Update user as verified
+    const user = await prisma.user.update({
+      where: { id: existingUser.id },
+      data: { email_verified: true },
+    })
 
-  const token = createToken(user)
+    // Clean up OTP
+    delete otpStore[data.email]
 
-  return {
-    message: "Email verified successfully.",
-    token,
-    user: {
-      id: user.id,
-      email: user.email,
-      full_name: user.full_name,
-      user_type: user.user_type,
-      email_verified: true,
-    },
+    // Generate auth token
+    const token = createToken(user)
+
+    console.log("✅ Email verification successful for user:", user.id)
+
+    return {
+      message: "Email verified successfully. Welcome to MuslimInfluencers.io!",
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        user_type: user.user_type,
+        username: user.username,
+        email_verified: true,
+      },
+    }
+  } catch (error: any) {
+    console.error("❌ OTP verification error:", error.message)
+    throw error
   }
 }
 
 // ✅ Login user
 export async function loginUser(data: { email: string; password: string }) {
-  const { email, password } = data
+  try {
+    const { email, password } = data
 
-  const user = await prisma.user.findUnique({ where: { email } })
-  if (!user || !(await bcrypt.compare(password, user.password))) {
-    throw new Error("Invalid credentials.")
-  }
+    const user = await prisma.user.findUnique({ where: { email } })
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      throw new Error("Invalid email or password.")
+    }
 
-  if (!user.email_verified) {
-    throw new Error("Please verify your email with the OTP.")
-  }
+    if (!user.email_verified) {
+      throw new Error("Please verify your email first. Check your inbox for the OTP.")
+    }
 
-  const token = createToken(user)
+    const token = createToken(user)
 
-  return {
-    token,
-    user: {
-      id: user.id,
-      email: user.email,
-      full_name: user.full_name,
-      user_type: user.user_type,
-      email_verified: user.email_verified,
-    },
+    console.log("✅ Login successful for user:", user.id)
+
+    return {
+      message: "Login successful",
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        user_type: user.user_type,
+        username: user.username,
+        email_verified: user.email_verified,
+        avatar_url: user.avatar_url,
+        bio: user.bio,
+        location: user.location,
+      },
+    }
+  } catch (error: any) {
+    console.error("❌ Login error:", error.message)
+    throw error
   }
 }
