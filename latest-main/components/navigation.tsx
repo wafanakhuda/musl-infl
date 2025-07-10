@@ -34,9 +34,35 @@ export function Navigation() {
   const router = useRouter()
 
   const handleLogout = async () => {
+  try {
+    // For OAuth users, also call backend logout
+    const token = localStorage.getItem("access_token")
+    if (token) {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+      } catch (err) {
+        console.warn('Backend logout failed:', err)
+        // Continue with frontend logout even if backend fails
+      }
+    }
+    
+    // Frontend logout
     await logout()
-    router.push("/auth/login")
+    
+    // Don't redirect again since logout() already does it
+  } catch (error) {
+    console.error('Logout error:', error)
+    // Fallback - force redirect to home
+    window.location.href = '/'
   }
+}
+
 
   return (
     <nav className="bg-slate-900/95 backdrop-blur-lg border-b border-slate-700/50 sticky top-0 z-50">
