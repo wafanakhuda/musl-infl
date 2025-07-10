@@ -24,7 +24,6 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
   const [isSending, setIsSending] = useState(true)
   const [countdown, setCountdown] = useState(60)
   const [isResending, setIsResending] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
     // Prevent double registration in React StrictMode
@@ -33,25 +32,39 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
 
     const registerUser = async () => {
       try {
-        // ✅ FIXED: Prepare payload to match backend expectations exactly
+        console.log("🔄 Starting registration process...")
+        console.log("📝 Form data received:", {
+          email: formData.email,
+          hasPassword: !!formData.password,
+          hasFullName: !!formData.full_name,
+          hasLocation: !!formData.location,
+          hasBio: !!formData.bio,
+          hasTitle: !!formData.title,
+          contentTypes: formData.content_type?.length || 0
+        })
+
+        // ✅ Prepare the payload to match backend expectations exactly
         const payload = {
           email: formData.email?.trim(),
           password: formData.password,
           full_name: formData.full_name?.trim(),
           user_type: "creator",
-          location: formData.location?.trim() || "Not specified", // ✅ Backend requires this
-          bio: formData.bio?.trim() || "Content creator", // ✅ Backend requires this
-          avatar_url: formData.avatar instanceof File ? undefined : formData.avatar, // ✅ Handle File objects
+          location: formData.location?.trim() || "Not specified",
+          bio: formData.bio?.trim() || "Creator on MuslimInfluencers.io",
+          avatar_url: typeof formData.avatar === 'string' ? formData.avatar : undefined,
           profile: {
-            username: formData.title?.trim() || `user_${Date.now()}` // ✅ Backend requires username in profile
+            username: formData.title?.trim() || `user_${Date.now()}`
           },
-          // ✅ Optional fields that backend can handle
+          // ✅ Additional creator fields
           platforms: Array.isArray(formData.content_type) ? formData.content_type : [],
           gender: formData.gender || undefined,
-          niche: formData.content_type?.[0] || undefined, // Use first content type as niche
+          niche: formData.content_type?.[0] || undefined,
         }
 
-        console.log("✅ Registering user with fixed payload:", payload)
+        console.log("📤 Sending registration payload:", {
+          ...payload,
+          password: "[HIDDEN]"
+        })
 
         const res = await fetch(`${API_BASE_URL}/auth/register`, {
           method: "POST",
@@ -60,38 +73,39 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
         })
 
         const data = await res.json()
-        console.log("Registration response:", data)
+        console.log("📥 Registration response:", {
+          ok: res.ok,
+          status: res.status,
+          hasUser: !!data.user,
+          message: data.message
+        })
 
         if (!res.ok) {
           const errorMessage = data.error || "Registration failed"
-          console.error("Registration failed:", errorMessage)
+          console.error("❌ Registration failed:", errorMessage)
           throw new Error(errorMessage)
         }
 
-        // Store user ID if returned
-        if (data.user?.id) {
-          setUserId(data.user.id)
-        }
-
-        toast.success("Registration successful! Please check your email for the OTP.")
+        console.log("✅ Registration successful!")
+        toast.success("Account created successfully! Please check your email for the OTP.")
         setCountdown(60)
 
       } catch (error: unknown) {
         const errorMessage = (error as Error).message
-        console.error("Registration error:", errorMessage)
+        console.error("❌ Registration error:", errorMessage)
         
-        // Check if error is due to existing email
         if (errorMessage.includes("already registered") || errorMessage.includes("Email already")) {
           toast.error("This email is already registered. Please login instead.")
           setTimeout(() => {
-            router.push("/auth/login/creator") // ✅ Fixed route
+            router.push("/auth/login/creator")
           }, 2000)
+        } else if (errorMessage.includes("Missing required fields")) {
+          toast.error("Please complete all previous steps before proceeding.")
+          hasRegistered.current = false // Allow retry
         } else {
           toast.error(errorMessage || "Registration failed. Please try again.")
+          hasRegistered.current = false // Allow retry
         }
-        
-        // Allow user to go back if registration fails
-        hasRegistered.current = false
       } finally {
         setIsSending(false)
       }
@@ -140,7 +154,7 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
         }))
       }
 
-      console.log("Saving packages:", packagesPayload)
+      console.log("💼 Saving packages:", packagesPayload)
 
       const res = await fetch(`${API_BASE_URL}/creators/packages`, {
         method: "POST",
@@ -156,6 +170,7 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
         console.error("Failed to save packages:", error)
         return false
       }
+      console.log("✅ Packages saved successfully")
       return true
     } catch (error) {
       console.error("Error saving packages:", error)
@@ -171,9 +186,8 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
 
     setIsVerifying(true)
     try {
-      console.log("Verifying OTP for:", formData.email)
+      console.log("🔍 Verifying OTP for:", formData.email)
 
-      // ✅ Verify OTP
       const verifyRes = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -184,37 +198,46 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
       })
 
       const verifyData = await verifyRes.json()
-      console.log("OTP verification response:", verifyData)
+      console.log("📥 OTP verification response:", {
+        ok: verifyRes.ok,
+        status: verifyRes.status,
+        hasToken: !!verifyData.token,
+        hasUser: !!verifyData.user
+      })
 
       if (!verifyRes.ok) {
         throw new Error(verifyData.error || "OTP verification failed")
       }
 
+      console.log("✅ OTP verification successful!")
+
       // ✅ Save packages after successful verification (if token available)
       if (verifyData.token) {
         const packagesSuccess = await savePackages(verifyData.token)
         if (!packagesSuccess) {
-          console.warn("Failed to save packages, but user is still registered")
+          console.warn("⚠️ Failed to save packages, but user is still registered")
         }
       }
 
-      // ✅ Success! User is registered, verified, and ready to login
-      toast.success("🎉 Account created successfully! Redirecting to login...")
-      
-      // Clear any stored registration data
+      // ✅ Clear any stored registration data
       localStorage.removeItem("creator_registration_data")
       
-      // ✅ Navigate to the correct login page
+      // ✅ Show success message
+      toast.success("🎉 Account created successfully! You can now login.")
+      
+      // ✅ Navigate to the correct login page after delay
       setTimeout(() => {
-        router.push("/auth/login/creator") // Make sure this route exists
-      }, 1500)
+        router.push("/auth/login/creator") // ✅ Fixed route
+      }, 2000)
       
     } catch (error: unknown) {
       const errorMessage = (error as Error).message
-      console.error("OTP verification error:", errorMessage)
+      console.error("❌ OTP verification error:", errorMessage)
       
       if (errorMessage.includes("Invalid or expired")) {
-        toast.error("Invalid or expired OTP. Please try again or request a new one.")
+        toast.error("Invalid or expired OTP. Please request a new one.")
+      } else if (errorMessage.includes("User not found")) {
+        toast.error("Account not found. Please register again.")
       } else {
         toast.error(errorMessage || "OTP verification failed. Please try again.")
       }
@@ -235,6 +258,9 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
           <p className="text-sm text-muted-foreground">
             Creating your account...
+          </p>
+          <p className="text-xs text-slate-500 mt-2">
+            This may take a few moments
           </p>
         </div>
       ) : (
@@ -276,20 +302,23 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
 
           <div className="mt-8 p-4 bg-muted/50 rounded-lg">
             <p className="text-xs text-muted-foreground">
-              <strong>Debug Info:</strong> Check your spam folder if you don't see the email. 
+              <strong>Note:</strong> Check your spam folder if you don't see the email. 
               The code expires in 10 minutes.
             </p>
             {/* ✅ Debug info for development */}
             {process.env.NODE_ENV === 'development' && (
               <details className="mt-2">
-                <summary className="text-xs cursor-pointer">Show Debug Data</summary>
-                <pre className="text-xs mt-2 p-2 bg-black/20 rounded">
+                <summary className="text-xs cursor-pointer text-blue-500">Show Debug Info</summary>
+                <pre className="text-xs mt-2 p-2 bg-black/20 rounded overflow-auto">
                   {JSON.stringify({
                     email: formData.email,
-                    hasTitle: !!formData.title,
+                    hasPassword: !!formData.password,
+                    hasFullName: !!formData.full_name,
                     hasLocation: !!formData.location,
                     hasBio: !!formData.bio,
-                    contentTypes: formData.content_type
+                    hasTitle: !!formData.title,
+                    contentTypes: formData.content_type,
+                    packages: formData.packages?.length || 0
                   }, null, 2)}
                 </pre>
               </details>

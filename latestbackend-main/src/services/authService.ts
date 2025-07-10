@@ -23,7 +23,7 @@ interface RegisterPayload {
   location?: string
   bio?: string
   avatar_url?: string
-  username?: string // Make optional and handle in profile
+  username?: string
   profile?: {
     username?: string
   }
@@ -39,6 +39,14 @@ interface RegisterPayload {
 export async function registerUser(data: RegisterPayload) {
   try {
     console.log("📝 Processing registration for:", data.email)
+    console.log("📝 Registration data:", {
+      email: data.email,
+      user_type: data.user_type,
+      hasLocation: !!data.location,
+      hasBio: !!data.bio,
+      hasUsername: !!(data.username || data.profile?.username),
+      platformsCount: data.platforms?.length || 0
+    })
 
     // Check if user already exists
     const existing = await prisma.user.findUnique({ where: { email: data.email } })
@@ -49,11 +57,16 @@ export async function registerUser(data: RegisterPayload) {
     // ✅ Extract username from profile or use fallback
     const username = data.profile?.username || data.username || `user_${Date.now()}`
     
-    // ✅ Provide defaults for required fields
+    // ✅ Provide sensible defaults for required fields
     const location = data.location?.trim() || "Not specified"
-    const bio = data.bio?.trim() || "Content creator on MuslimInfluencers.io"
+    const bio = data.bio?.trim() || `${data.user_type === 'creator' ? 'Content creator' : 'Brand'} on MuslimInfluencers.io`
 
-    console.log("📝 Creating user with username:", username)
+    console.log("📝 Creating user with:", {
+      username,
+      location,
+      bio: bio.substring(0, 50) + "...",
+      platforms: data.platforms
+    })
 
     const hashed = await bcrypt.hash(data.password, 10)
 
@@ -67,7 +80,7 @@ export async function registerUser(data: RegisterPayload) {
         bio: bio,
         avatar_url: data.avatar_url,
         email_verified: false,
-        username: username, // ✅ Always provide a username
+        username: username,
         followers: data.followers || null,
         price_min: data.price_min || null,
         price_max: data.price_max || null,
@@ -147,6 +160,11 @@ export async function verifyOtp(data: { email: string; otp: string }) {
         user_type: user.user_type,
         username: user.username,
         email_verified: true,
+        bio: user.bio,
+        location: user.location,
+        niche: user.niche,
+        platforms: user.platforms,
+        avatar_url: user.avatar_url,
       },
     }
   } catch (error: any) {
@@ -186,6 +204,9 @@ export async function loginUser(data: { email: string; password: string }) {
         avatar_url: user.avatar_url,
         bio: user.bio,
         location: user.location,
+        niche: user.niche,
+        platforms: user.platforms,
+        verified: user.verified,
       },
     }
   } catch (error: any) {

@@ -6,13 +6,12 @@ import prisma from "../lib/prisma"
 
 const router = Router()
 
-// ✅ Enhanced Creator Registration with better validation
+// ✅ Enhanced Creator Registration with more flexible validation
 router.post("/register", async (req: Request, res: Response): Promise<void> => {
   try {
     console.log("📝 Registration request received")
-    console.log("Headers:", req.headers)
-    console.log("Body keys:", Object.keys(req.body))
-    console.log("Full payload:", JSON.stringify(req.body, null, 2))
+    console.log("📝 Request body keys:", Object.keys(req.body))
+    console.log("📝 Full payload:", JSON.stringify(req.body, null, 2))
 
     const {
       email,
@@ -26,7 +25,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       platforms,
       gender,
       niche,
-      username, // Direct username field
+      username,
     } = req.body
 
     // ✅ Basic validation with more helpful error messages
@@ -37,11 +36,8 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
     if (!full_name?.trim()) errors.push("Full name is required")
     if (!user_type) errors.push("User type is required")
 
-    // ✅ For creators, we need either location/bio OR we'll provide defaults
-    if (user_type === "creator") {
-      console.log("👤 Creator registration detected")
-      // We'll provide defaults in the service if not provided
-    }
+    // ✅ More flexible validation - these fields are not strictly required
+    // The service will provide defaults if needed
 
     if (errors.length > 0) {
       console.log("❌ Validation errors:", errors)
@@ -62,8 +58,8 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       location: location?.trim(),
       bio: bio?.trim(),
       avatar_url,
-      profile, // Pass the entire profile object
-      username, // Direct username if provided
+      profile,
+      username,
       platforms: Array.isArray(platforms) ? platforms : [],
       gender,
       niche,
@@ -74,6 +70,8 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       user_type: registrationData.user_type,
       hasProfile: !!registrationData.profile,
       hasUsername: !!registrationData.username,
+      hasLocation: !!registrationData.location,
+      hasBio: !!registrationData.bio,
       platformsCount: registrationData.platforms.length
     })
 
@@ -84,7 +82,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
 
   } catch (error: any) {
     console.error("❌ Registration error:", error.message)
-    console.error("Full error:", error)
+    console.error("❌ Full error:", error)
     
     // Provide more specific error messages
     let errorMessage = error.message
@@ -162,7 +160,7 @@ router.post("/send-otp", async (req: Request, res: Response): Promise<void> => {
 router.post("/verify-otp", async (req: Request, res: Response): Promise<void> => {
   try {
     console.log("🔍 OTP verification request received")
-    console.log("Payload:", { email: req.body.email, otpLength: req.body.otp?.length })
+    console.log("📝 Payload:", { email: req.body.email, otpLength: req.body.otp?.length })
 
     const { email, otp } = req.body
     if (!email || !otp) {
