@@ -33,24 +33,25 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
 
     const registerUser = async () => {
       try {
-        // Prepare the payload according to your backend structure
+        // ✅ FIXED: Prepare payload to match backend expectations exactly
         const payload = {
-          email: formData.email,
+          email: formData.email?.trim(),
           password: formData.password,
-          full_name: formData.full_name,
+          full_name: formData.full_name?.trim(),
           user_type: "creator",
-          location: formData.location,
-          bio: formData.bio,
-          avatar_url: formData.avatar || undefined,
+          location: formData.location?.trim() || "Not specified", // ✅ Backend requires this
+          bio: formData.bio?.trim() || "Content creator", // ✅ Backend requires this
+          avatar_url: formData.avatar instanceof File ? undefined : formData.avatar, // ✅ Handle File objects
           profile: {
-            username: formData.title // Backend expects username in profile object
+            username: formData.title?.trim() || `user_${Date.now()}` // ✅ Backend requires username in profile
           },
-          // Additional fields that can be sent directly
-          platforms: formData.content_type,
+          // ✅ Optional fields that backend can handle
+          platforms: Array.isArray(formData.content_type) ? formData.content_type : [],
           gender: formData.gender || undefined,
+          niche: formData.content_type?.[0] || undefined, // Use first content type as niche
         }
 
-        console.log("Registering user with payload:", payload)
+        console.log("✅ Registering user with fixed payload:", payload)
 
         const res = await fetch(`${API_BASE_URL}/auth/register`, {
           method: "POST",
@@ -59,26 +60,34 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
         })
 
         const data = await res.json()
-        if (!res.ok) throw new Error(data.error || "Registration failed")
+        console.log("Registration response:", data)
+
+        if (!res.ok) {
+          const errorMessage = data.error || "Registration failed"
+          console.error("Registration failed:", errorMessage)
+          throw new Error(errorMessage)
+        }
 
         // Store user ID if returned
-        if (data.user && data.user.id) {
+        if (data.user?.id) {
           setUserId(data.user.id)
         }
 
-        toast.success("Registered successfully. OTP sent to your email.")
+        toast.success("Registration successful! Please check your email for the OTP.")
         setCountdown(60)
+
       } catch (error: unknown) {
         const errorMessage = (error as Error).message
+        console.error("Registration error:", errorMessage)
         
         // Check if error is due to existing email
-        if (errorMessage.includes("already registered")) {
+        if (errorMessage.includes("already registered") || errorMessage.includes("Email already")) {
           toast.error("This email is already registered. Please login instead.")
           setTimeout(() => {
-            router.push("/login/creator")
+            router.push("/auth/login/creator") // ✅ Fixed route
           }, 2000)
         } else {
-          toast.error(errorMessage || "Registration failed")
+          toast.error(errorMessage || "Registration failed. Please try again.")
         }
         
         // Allow user to go back if registration fails
@@ -131,6 +140,8 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
         }))
       }
 
+      console.log("Saving packages:", packagesPayload)
+
       const res = await fetch(`${API_BASE_URL}/creators/packages`, {
         method: "POST",
         headers: { 
@@ -160,7 +171,9 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
 
     setIsVerifying(true)
     try {
-      // Verify OTP
+      console.log("Verifying OTP for:", formData.email)
+
+      // ✅ Verify OTP
       const verifyRes = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -171,30 +184,39 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
       })
 
       const verifyData = await verifyRes.json()
-      if (!verifyRes.ok) throw new Error(verifyData.error || "OTP verification failed")
+      console.log("OTP verification response:", verifyData)
 
-      // Save packages after successful verification
-      if (verifyData.token) {
-        await savePackages(verifyData.token)
+      if (!verifyRes.ok) {
+        throw new Error(verifyData.error || "OTP verification failed")
       }
 
-      // Success! User is registered, verified, and ready to login
-      toast.success("Account created successfully! Please login to continue.")
+      // ✅ Save packages after successful verification (if token available)
+      if (verifyData.token) {
+        const packagesSuccess = await savePackages(verifyData.token)
+        if (!packagesSuccess) {
+          console.warn("Failed to save packages, but user is still registered")
+        }
+      }
+
+      // ✅ Success! User is registered, verified, and ready to login
+      toast.success("🎉 Account created successfully! Redirecting to login...")
       
       // Clear any stored registration data
       localStorage.removeItem("creator_registration_data")
       
-      // Navigate to creator login page
+      // ✅ Navigate to the correct login page
       setTimeout(() => {
-        router.push("/login/creator") // Update this path to match your login route
+        router.push("/auth/login/creator") // Make sure this route exists
       }, 1500)
       
     } catch (error: unknown) {
       const errorMessage = (error as Error).message
+      console.error("OTP verification error:", errorMessage)
+      
       if (errorMessage.includes("Invalid or expired")) {
-        toast.error("Invalid or expired OTP. Please try again.")
+        toast.error("Invalid or expired OTP. Please try again or request a new one.")
       } else {
-        toast.error(errorMessage || "OTP verification failed")
+        toast.error(errorMessage || "OTP verification failed. Please try again.")
       }
     } finally {
       setIsVerifying(false)
@@ -238,7 +260,7 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
             disabled={isVerifying || formData.otp.length !== 6}
           >
             {isVerifying && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-            {isVerifying ? "Verifying..." : "Verify & Continue to Login"}
+            {isVerifying ? "Verifying..." : "Verify & Complete Registration"}
           </Button>
           
           <p className="text-sm text-muted-foreground mt-4 text-center">
@@ -254,9 +276,24 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
 
           <div className="mt-8 p-4 bg-muted/50 rounded-lg">
             <p className="text-xs text-muted-foreground">
-              <strong>Note:</strong> Check your spam folder if you don't see the email. 
+              <strong>Debug Info:</strong> Check your spam folder if you don't see the email. 
               The code expires in 10 minutes.
             </p>
+            {/* ✅ Debug info for development */}
+            {process.env.NODE_ENV === 'development' && (
+              <details className="mt-2">
+                <summary className="text-xs cursor-pointer">Show Debug Data</summary>
+                <pre className="text-xs mt-2 p-2 bg-black/20 rounded">
+                  {JSON.stringify({
+                    email: formData.email,
+                    hasTitle: !!formData.title,
+                    hasLocation: !!formData.location,
+                    hasBio: !!formData.bio,
+                    contentTypes: formData.content_type
+                  }, null, 2)}
+                </pre>
+              </details>
+            )}
           </div>
         </>
       )}
