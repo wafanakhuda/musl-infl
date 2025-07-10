@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { CreatorFormData } from "../../../../../components/types/form"
 import { useRouter } from "next/navigation"
+import { useAuth } from "../../../../../hooks/use-auth" // ✅ Import useAuth
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://latestbackend-3psc.onrender.com"
 
@@ -18,6 +19,7 @@ interface Step10Props {
 
 const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateForm, back }) => {
   const router = useRouter()
+  const { loginWithToken } = useAuth() // ✅ Get loginWithToken function
   const hasRegistered = useRef(false)
 
   const [isVerifying, setIsVerifying] = useState(false)
@@ -219,16 +221,42 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
         }
       }
 
-      // ✅ Clear any stored registration data
-      localStorage.removeItem("creator_registration_data")
-      
-      // ✅ Show success message
-      toast.success("🎉 Account created successfully! You can now login.")
-      
-      // ✅ Navigate to the correct login page after delay
-      setTimeout(() => {
-        router.push("/auth/login/creator") // ✅ Fixed route
-      }, 2000)
+      // ✅ AUTO LOGIN: Use the token to log the user in automatically
+      if (verifyData.token) {
+        console.log("🔐 Auto-logging in user with received token...")
+        
+        // Store the token
+        localStorage.setItem("access_token", verifyData.token)
+        
+        // Login with token using auth provider
+        await loginWithToken(verifyData.token)
+        
+        console.log("✅ Auto-login successful!")
+        
+        // Clear any stored registration data
+        localStorage.removeItem("creator_registration_data")
+        
+        // Show success message
+        toast.success("🎉 Account created successfully! Welcome to MuslimInfluencers.io!")
+        
+        // ✅ Redirect to dashboard instead of login page
+        setTimeout(() => {
+          router.push("/dashboard/creator")
+        }, 1500)
+        
+      } else {
+        // ✅ Fallback: No token received, redirect to login
+        console.warn("⚠️ No token received, redirecting to login")
+        
+        // Clear any stored registration data
+        localStorage.removeItem("creator_registration_data")
+        
+        toast.success("🎉 Account created successfully! Please login to continue.")
+        
+        setTimeout(() => {
+          router.push("/auth/login/creator")
+        }, 2000)
+      }
       
     } catch (error: unknown) {
       const errorMessage = (error as Error).message
