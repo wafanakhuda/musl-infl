@@ -38,11 +38,12 @@ interface RegisterPayload {
 interface AuthContextType {
   user: User | null
   loading: boolean
-  login: (email: string, password: string) => Promise<boolean> // ✅ Updated return type
+  login: (email: string, password: string) => Promise<boolean>
   loginWithToken: (token: string) => Promise<void>
   register: (payload: RegisterPayload) => Promise<void>
   logout: () => void
   updateProfile: (userData: Partial<User>) => Promise<void>
+  checkProfileCompletion: () => Promise<boolean>
   refreshUser: () => Promise<void>
   isAuthenticated: boolean
   updateUser: (user: User) => void
@@ -119,41 +120,87 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
- const logout = () => {
-  console.log('🚪 Logging out user')
-  
-  // Clear all auth data
-  setUser(null)
-  setIsAuthenticated(false)
-  localStorage.removeItem("access_token")
-  localStorage.removeItem("auth_user")
-  localStorage.removeItem("creator_registration_data") // Clear any registration data
-  
-  // Clear any OAuth-related storage
-  localStorage.removeItem("oauth_provider")
-  localStorage.removeItem("pending_email")
-  
-  // Always redirect to home page to avoid 404s
-  router.push("/")
-  
-  // Show success message
-  toast?.success?.("Logged out successfully") || console.log("Logged out successfully")
-}
+  const logout = () => {
+    console.log('🚪 Logging out user')
+    
+    // Clear all auth data
+    setUser(null)
+    setIsAuthenticated(false)
+    localStorage.removeItem("access_token")
+    localStorage.removeItem("auth_user")
+    localStorage.removeItem("creator_registration_data") // Clear any registration data
+    
+    // Clear any OAuth-related storage
+    localStorage.removeItem("oauth_provider")
+    localStorage.removeItem("pending_email")
+    
+    // Always redirect to home page to avoid 404s
+    router.push("/")
+    
+    // Show success message
+    toast?.success?.("Logged out successfully") || console.log("Logged out successfully")
+  }
+
+  // ✅ NEW: Enhanced updateProfile function for OAuth onboarding
   const updateProfile = async (userData: Partial<User>) => {
     try {
-      if (user) {
-        const updatedUser = { ...user, ...userData }
-        setUser(updatedUser)
-        localStorage.setItem("auth_user", JSON.stringify(updatedUser))
-        toast.success("Profile updated successfully.")
-      }
+      setLoading(true)
+      console.log('📝 Updating profile:', userData)
+      
+      const token = localStorage.getItem("access_token")
+      if (!token) throw new Error("No authentication token")
+
+      const res = await fetch(`${API_URL}/users/profile`, {
+        method: "PUT",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(userData),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to update profile")
+
+      // ✅ Update local user state
+      setUser(data.user)
+      localStorage.setItem("auth_user", JSON.stringify(data.user))
+      
+      console.log('✅ Profile updated successfully')
+      toast.success("Profile updated successfully")
+      
     } catch (error: any) {
-      toast.error("Update Failed", { description: error.message })
+      console.error("Profile update error:", error)
+      toast.error(error.message || "Failed to update profile")
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ✅ NEW: Check profile completion status
+  const checkProfileCompletion = async (): Promise<boolean> => {
+    try {
+      const token = localStorage.getItem("access_token")
+      if (!token) return false
+
+      const res = await fetch(`${API_URL}/users/profile-status`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      const data = await res.json()
+      if (!res.ok) return false
+
+      return data.profile_complete
+    } catch (error) {
+      console.error("Profile completion check error:", error)
+      return false
     }
   }
 
   const updateUser = (updated: User) => {
     setUser(updated)
+    setIsAuthenticated(true)
     localStorage.setItem("auth_user", JSON.stringify(updated))
   }
 
@@ -164,13 +211,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // ✅ Enhanced useEffect for auth initialization
   useEffect(() => {
-    const savedUser = localStorage.getItem("auth_user")
-    if (savedUser) {
-      setUser(JSON.parse(savedUser))
-      setIsAuthenticated(true)
+    const initAuth = async () => {
+      try {
+        // First check for saved user data
+        const savedUser = localStorage.getItem("auth_user")
+        const token = localStorage.getItem("access_token")
+        
+        if (savedUser && token) {
+          console.log('🔄 Restoring saved user session')
+          const userData = JSON.parse(savedUser)
+          setUser(userData)
+          setIsAuthenticated(true)
+          
+          // Verify token is still valid
+          try {
+            await fetch(`${API_URL}/users/me`, {
+              headers: { Authorization: `Bearer ${token}` }
+            })
+          } catch (error) {
+            console.warn('Saved token invalid, clearing session')
+            logout()
+          }
+        } else if (token) {
+          // Have token but no user data, fetch user
+          console.log('🔄 Token found, fetching user data')
+          await loginWithToken(token)
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error)
+        // Clear potentially corrupted data
+        logout()
+      }
     }
-  }, [])
+    
+    initAuth()
+  }, []) // Only run once on mount
 
   const value: AuthContextType = {
     user,
@@ -180,6 +257,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     register,
     logout,
     updateProfile,
+    checkProfileCompletion,
     refreshUser,
     isAuthenticated,
     updateUser,
