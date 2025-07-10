@@ -7,97 +7,86 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  creator
-  brand
-  admin
-}
-
 model User {
-  id                             String   @id @default(uuid())
-  email                          String   @unique
-  password                       String
-  username                       String   @unique
-  full_name                      String
-  user_type                      UserRole
-  avatar_url                     String?
-  bio                            String?
-  location                       String?
-  niche                          String?
-  followers                      Int?
-  price_min                      Int?
-  price_max                      Int?
-  platforms                      String[]  @default([])
-  website                        String?
-  verified                       Boolean   @default(false)
-  email_verified                 Boolean   @default(false)
-  is_active                      Boolean   @default(true)
-  gender                         String?
-  created_at                     DateTime  @default(now())
-  updated_at                     DateTime  @updatedAt
-  last_login                     DateTime?
-searchLogs SearchLog[]
-  campaigns                      Campaign[]                    @relation("BrandCampaigns")
-  applicationsAsUser             CampaignApplication[]         @relation("ApplicationsAsUser")
-  createdCampaignApplications    CampaignApplication[]         @relation("CreatorApplications") // ✅ Corrected
-  messages                       Message[]
-  conversations                  ConversationParticipant[]
-  portfolioItems                 PortfolioItem[]
-  transactions                   Transaction[]                 @relation("UserTransactions")
-  reviewsGiven                   Review[]                      @relation("ReviewsByUsers")
-  reviewsReceived                Review[]                      @relation("CreatorReviews")
-  engagement                     Engagement?                   @relation("CreatorEngagement")
-  packages                       Package[]
+  id                          String                    @id @default(uuid())
+  email                       String                    @unique
+  password                    String
+  full_name                   String
+  user_type                   UserRole
+  avatar_url                  String?
+  bio                         String?
+  location                    String?
+  website                     String?
+  verified                    Boolean                   @default(false)
+  email_verified              Boolean                   @default(false)
+  is_active                   Boolean                   @default(true)
+  created_at                  DateTime                  @default(now())
+  last_login                  DateTime?
+  niche                       String?
+  followers                   Int?
+  price_max                   Int?
+  price_min                   Int?
+  username                    String                    @unique
+  gender                      String?
+  updated_at                  DateTime                  @updatedAt
+  platforms                   String[]                  @default([])
+  campaigns                   Campaign[]                @relation("BrandCampaigns")
+  createdCampaignApplications CampaignApplication[]     @relation("CreatorApplications")
+  applicationsAsUser          CampaignApplication[]     @relation("ApplicationsAsUser")
+  conversations               ConversationParticipant[]
+  engagement                  Engagement?               @relation("CreatorEngagement")
+  messages                    Message[]
+  packages                    Package[]
+  portfolioItems              PortfolioItem[]
+  reviewsReceived             Review[]                  @relation("CreatorReviews")
+  reviewsGiven                Review[]                  @relation("ReviewsByUsers")
+  searchLogs                  SearchLog[]
+  transactions                Transaction[]             @relation("UserTransactions")
 }
-
-
 
 model Campaign {
-  id                 String    @id @default(uuid())
+  id                 String                @id @default(uuid())
   title              String
   description        String
   category           String
-  campaign_type      String
-  brandId            String
   budget_min         Int?
   budget_max         Int?
-  deadline           DateTime?
   start_date         DateTime?
   end_date           DateTime?
-  deliverables       String
-  gender             String[]  @default([])
-  age_range          String?
-  language           String[]  @default([])
-  country            String[]  @default([])
-  city               String[]  @default([])
-  niche              String[]  @default([])
-  platforms          String[]  @default([])
-  followers_min      Int?
-  followers_max      Int?
-  influencers_needed Int?
+  target_audience    String[]              @default([])
+  deadline           DateTime?
   requirements       String?
-  target_audience    String[]  @default([])
+  created_at         DateTime              @default(now())
+  brandId            String
+  age_range          String?
   estimated_reach    Int?
-  created_at         DateTime  @default(now())
-
-  brand        User                  @relation("BrandCampaigns", fields: [brandId], references: [id])
-  applications CampaignApplication[]
-  Conversation Conversation[]
+  followers_max      Int?
+  followers_min      Int?
+  influencers_needed Int?
+  campaign_type      String
+  deliverables       String
+  niche              String[]              @default([])
+  platforms          String[]              @default([])
+  city               String[]              @default([])
+  country            String[]              @default([])
+  gender             String[]              @default([])
+  language           String[]              @default([])
+  brand              User                  @relation("BrandCampaigns", fields: [brandId], references: [id])
+  applications       CampaignApplication[]
+  Conversation       Conversation[]
 }
 
 model CampaignApplication {
   id         String   @id @default(uuid())
   campaignId String
-  creatorId  String
-  userId     String
   status     String   @default("pending")
   applied_at DateTime @default(now())
-
+  creatorId  String
+  userId     String
   campaign   Campaign @relation(fields: [campaignId], references: [id])
+  creator    User     @relation("CreatorApplications", fields: [creatorId], references: [id])
   user       User     @relation("ApplicationsAsUser", fields: [userId], references: [id])
-  creator    User     @relation("CreatorApplications", fields: [creatorId], references: [id]) // ✅ Opposite side
 }
-
 
 model Review {
   id        String   @id @default(uuid())
@@ -106,9 +95,8 @@ model Review {
   rating    Int
   comment   String?
   createdAt DateTime @default(now())
-
-  creator User @relation("CreatorReviews", fields: [creatorId], references: [id])
-  user    User @relation("ReviewsByUsers", fields: [userId], references: [id])
+  creator   User     @relation("CreatorReviews", fields: [creatorId], references: [id])
+  user      User     @relation("ReviewsByUsers", fields: [userId], references: [id])
 }
 
 model Engagement {
@@ -117,59 +105,54 @@ model Engagement {
   reach     Int?
   avg_views Int?
   ctr       Float?
-
-  creator User @relation("CreatorEngagement", fields: [creatorId], references: [id])
+  creator   User   @relation("CreatorEngagement", fields: [creatorId], references: [id])
 }
 
 model PortfolioItem {
   id          String   @id @default(uuid())
-  title       String
   description String
   mediaUrl    String
+  title       String
+  created_at  DateTime @default(now())
   creatorId   String
   creator     User     @relation(fields: [creatorId], references: [id])
-  created_at  DateTime @default(now()) 
 }
 
 model Message {
-  id             String   @id @default(uuid())
+  id             String       @id @default(uuid())
+  content        String
+  created_at     DateTime     @default(now())
   conversationId String
   senderId       String
-  content        String
-  created_at     DateTime @default(now())
-
-  sender       User         @relation(fields: [senderId], references: [id])
-  conversation Conversation @relation(fields: [conversationId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  sender         User         @relation(fields: [senderId], references: [id])
 }
 
 model Conversation {
-  id         String   @id @default(uuid())
-  campaignId String?
-  created_at DateTime @default(now())
-
+  id           String                    @id @default(uuid())
+  created_at   DateTime                  @default(now())
+  campaignId   String?
+  updated_at   DateTime                  @updatedAt
   campaign     Campaign?                 @relation(fields: [campaignId], references: [id])
-  messages     Message[]
   participants ConversationParticipant[]
-   updated_at DateTime @updatedAt
+  messages     Message[]
 }
 
 model ConversationParticipant {
-  id             String @id @default(uuid())
+  id             String       @id @default(uuid())
   userId         String
   conversationId String
-
-  user         User         @relation(fields: [userId], references: [id])
-  conversation Conversation @relation(fields: [conversationId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
 }
 
 model Transaction {
   id         String   @id @default(uuid())
-  creatorId  String
   amount     Int
   status     String   @default("pending")
+  creatorId  String
   created_at DateTime @default(now())
-
-  creator User @relation("UserTransactions", fields: [creatorId], references: [id])
+  creator    User     @relation("UserTransactions", fields: [creatorId], references: [id])
 }
 
 model Package {
@@ -180,8 +163,7 @@ model Package {
   price       Int
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
-
-  creator User @relation(fields: [creatorId], references: [id])
+  creator     User     @relation(fields: [creatorId], references: [id])
 }
 
 model SearchLog {
@@ -189,6 +171,11 @@ model SearchLog {
   userId    String
   query     String
   timestamp DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
 
-  user User @relation(fields: [userId], references: [id])
+enum UserRole {
+  creator
+  brand
+  admin
 }
