@@ -3,6 +3,7 @@ import { registerUser, loginUser, verifyOtp } from "../services/authService"
 import { generateOtp, otpStore } from "../utils/otpUtils"
 import { sendEmail } from "../utils/email"
 import prisma from "../lib/prisma"
+import bcrypt from "bcryptjs" // ✅ Add this import
 
 const router = Router()
 
@@ -36,9 +37,6 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
     if (!full_name?.trim()) errors.push("Full name is required")
     if (!user_type) errors.push("User type is required")
 
-    // ✅ More flexible validation - these fields are not strictly required
-    // The service will provide defaults if needed
-
     if (errors.length > 0) {
       console.log("❌ Validation errors:", errors)
       res.status(400).json({ 
@@ -65,16 +63,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       niche,
     }
 
-    console.log("📝 Calling registerUser with:", {
-      email: registrationData.email,
-      user_type: registrationData.user_type,
-      hasProfile: !!registrationData.profile,
-      hasUsername: !!registrationData.username,
-      hasLocation: !!registrationData.location,
-      hasBio: !!registrationData.bio,
-      platformsCount: registrationData.platforms.length
-    })
-
+    console.log("📝 Calling registerUser")
     const result = await registerUser(registrationData)
 
     console.log("✅ Registration successful, sending response")
@@ -82,14 +71,11 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
 
   } catch (error: any) {
     console.error("❌ Registration error:", error.message)
-    console.error("❌ Full error:", error)
     
     // Provide more specific error messages
     let errorMessage = error.message
     if (error.message.includes("Email already")) {
       errorMessage = "This email is already registered. Please login instead."
-    } else if (error.message.includes("validation")) {
-      errorMessage = "Please check your input and try again."
     } else if (!errorMessage || errorMessage === "Internal server error") {
       errorMessage = "Registration failed. Please try again later."
     }
@@ -230,12 +216,7 @@ router.post("/resend-otp", async (req: Request, res: Response): Promise<void> =>
   }
 })
 
-
-
-
-// ADD THESE ROUTES TO YOUR EXISTING authRoutes.ts file
-
-// ✅ Forgot Password - Send reset OTP
+// ✅ NEW: Forgot Password - Send reset OTP
 router.post("/forgot-password", async (req: Request, res: Response): Promise<void> => {
   try {
     const { email } = req.body
@@ -278,7 +259,7 @@ router.post("/forgot-password", async (req: Request, res: Response): Promise<voi
   }
 })
 
-// ✅ Verify Reset OTP and Reset Password
+// ✅ NEW: Verify Reset OTP and Reset Password
 router.post("/reset-password", async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, otp, newPassword } = req.body
@@ -334,7 +315,7 @@ router.post("/reset-password", async (req: Request, res: Response): Promise<void
   }
 })
 
-// ✅ Resend Password Reset OTP
+// ✅ NEW: Resend Password Reset OTP
 router.post("/resend-reset-otp", async (req: Request, res: Response): Promise<void> => {
   try {
     const { email } = req.body
@@ -376,7 +357,6 @@ router.post("/resend-reset-otp", async (req: Request, res: Response): Promise<vo
     res.status(500).json({ error: "Failed to resend password reset code. Please try again." })
   }
 })
-
 
 // ✅ Health check endpoint
 router.get("/health", (req: Request, res: Response) => {
