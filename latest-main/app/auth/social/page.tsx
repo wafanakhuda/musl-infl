@@ -1,11 +1,9 @@
-// ===== 1. Fixed Social Auth Callback Page =====
-// File: /app/auth/social/page.tsx
 "use client"
 
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "../../../hooks/use-auth"
-import { Loader2, AlertCircle, CheckCircle } from "lucide-react"
+import { Loader2, AlertCircle, CheckCircle, UserPlus } from "lucide-react"
 import { Button } from "../../../components/ui/button"
 import { FloatingElements } from "../../../components/ui/floating-elements"
 
@@ -14,9 +12,10 @@ export default function SocialRedirectPage() {
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
   const error = searchParams.get("error")
+  const needsOnboarding = searchParams.get("needs_onboarding") === "true"
   const { loginWithToken } = useAuth()
   
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'needs_onboarding'>('loading')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -29,17 +28,20 @@ export default function SocialRedirectPage() {
 
       if (token) {
         try {
-          console.log('🔐 Processing OAuth token')
+          console.log('🔐 Processing OAuth token, needs onboarding:', needsOnboarding)
           localStorage.setItem("access_token", token)
           await loginWithToken(token)
           
-          setStatus('success')
-          setMessage('Login successful! Redirecting to dashboard...')
-          
-          // Give user feedback before redirect
-          setTimeout(() => {
-            router.replace("/dashboard/creator")
-          }, 1500)
+          if (needsOnboarding) {
+            setStatus('needs_onboarding')
+            setMessage('Welcome! Let\'s complete your profile to get started.')
+          } else {
+            setStatus('success')
+            setMessage('Login successful! Redirecting to dashboard...')
+            setTimeout(() => {
+              router.replace("/dashboard/creator")
+            }, 1500)
+          }
           
         } catch (err: any) {
           console.error('OAuth login error:', err)
@@ -53,7 +55,12 @@ export default function SocialRedirectPage() {
     }
 
     handleAuth()
-  }, [token, error, loginWithToken, router])
+  }, [token, error, needsOnboarding, loginWithToken, router])
+
+  const handleStartOnboarding = () => {
+    // ✅ Redirect to onboarding with a special flag
+    router.push('/auth/complete-profile?from_oauth=true')
+  }
 
   const handleRetry = () => {
     router.push('/auth/login/creator')
@@ -81,8 +88,25 @@ export default function SocialRedirectPage() {
           {status === 'success' && (
             <>
               <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-400" />
-              <h2 className="text-xl font-semibold mb-2">Welcome!</h2>
+              <h2 className="text-xl font-semibold mb-2">Welcome Back!</h2>
               <p className="text-slate-400">{message}</p>
+            </>
+          )}
+
+          {status === 'needs_onboarding' && (
+            <>
+              <UserPlus className="w-12 h-12 mx-auto mb-4 text-blue-400" />
+              <h2 className="text-xl font-semibold mb-2">Complete Your Profile</h2>
+              <p className="text-slate-400 mb-6">{message}</p>
+              
+              <div className="space-y-3">
+                <Button onClick={handleStartOnboarding} className="w-full bg-gradient-to-r from-blue-500 to-teal-500">
+                  Complete Profile Setup
+                </Button>
+                <p className="text-xs text-slate-500">
+                  This will only take 2-3 minutes and helps brands find you!
+                </p>
+              </div>
             </>
           )}
 
