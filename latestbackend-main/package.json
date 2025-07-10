@@ -7,7 +7,6 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "postinstall": "chmod +x ./node_modules/.bin/prisma && npx --no-install prisma generate"
-
   },
   "dependencies": {
     "@prisma/client": "^6.11.1",
@@ -50,4 +49,3 @@
     "typescript": "^5.0.4"
   }
 }
-
