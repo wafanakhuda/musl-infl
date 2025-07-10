@@ -10,16 +10,15 @@ interface Props {
 export function LayoutWrapper({ children }: Props) {
   const pathname = usePathname()
 
-  const isMinimalRoute =
+  const isCreatorRoute =
     pathname?.startsWith("/dashboard/creator") ||
     pathname?.startsWith("/messages") ||
     pathname?.startsWith("/settings") ||
-    pathname?.startsWith("/portfolio") ||
-    pathname === "/brand" // ✅ Exclude navigation on brand landing
+    pathname?.startsWith("/portfolio")
 
   return (
     <>
-      {!isMinimalRoute && <Navigation />}
+      {!isCreatorRoute && <Navigation />}
       {children}
     </>
   )

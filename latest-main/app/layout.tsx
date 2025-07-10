@@ -1,10 +1,8 @@
-import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { Navigation } from "../components/navigation"
 import { AuthProvider } from "../hooks/use-auth"
-import { usePathname } from "next/navigation"
+import { LayoutWrapper } from "../components/layout-wrapper"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -16,13 +14,6 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const isCreatorRoute =
-    pathname?.startsWith("/dashboard/creator") ||
-    pathname?.startsWith("/messages") ||
-    pathname?.startsWith("/settings") ||
-    pathname?.startsWith("/portfolio")
-
   return (
     <html lang="en">
       <head>
@@ -31,8 +22,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${inter.className} bg-slate-900 text-white`}>
         <AuthProvider>
-          {!isCreatorRoute && <Navigation />}
-          {children}
+          <LayoutWrapper>
+            {children}
+          </LayoutWrapper>
         </AuthProvider>
       </body>
     </html>
