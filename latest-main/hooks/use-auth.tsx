@@ -119,15 +119,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const logout = () => {
-    setUser(null)
-    setIsAuthenticated(false)
-    localStorage.removeItem("access_token")
-    localStorage.removeItem("auth_user")
-    router.push("/auth/login")
-    toast.success("Logged Out")
-  }
-
+ const logout = () => {
+  console.log('🚪 Logging out user')
+  
+  // Clear all auth data
+  setUser(null)
+  setIsAuthenticated(false)
+  localStorage.removeItem("access_token")
+  localStorage.removeItem("auth_user")
+  localStorage.removeItem("creator_registration_data") // Clear any registration data
+  
+  // Clear any OAuth-related storage
+  localStorage.removeItem("oauth_provider")
+  localStorage.removeItem("pending_email")
+  
+  // Always redirect to home page to avoid 404s
+  router.push("/")
+  
+  // Show success message
+  toast?.success?.("Logged out successfully") || console.log("Logged out successfully")
+}
   const updateProfile = async (userData: Partial<User>) => {
     try {
       if (user) {
