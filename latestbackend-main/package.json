@@ -6,7 +6,8 @@
     "dev": "ts-node-dev src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "postinstall": "npx prisma generate"
+    "postinstall": "npx --no-install prisma generate"
+
   },
   "dependencies": {
     "@prisma/client": "^6.11.1",
