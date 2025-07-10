@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "ts-node-dev src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
-    "postinstall": "npx prisma generate"
+    "start": "node build/index.js",
+    "prisma": "prisma"
   },
   "dependencies": {
     "@prisma/client": "^6.11.1",
@@ -32,7 +32,6 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
-    "@types/body-parser": "^1.19.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/express-session": "^1.18.2",
@@ -42,7 +41,6 @@
     "@types/passport": "^1.0.17",
     "@types/passport-apple": "^2.0.3",
     "@types/passport-google-oauth20": "^2.0.16",
-    "@types/passport-oauth2": "^1.8.0",
     "@types/socket.io": "^3.0.1",
     "prisma": "^6.11.1",
     "ts-node-dev": "^2.0.0",
