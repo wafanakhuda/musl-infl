@@ -230,6 +230,154 @@ router.post("/resend-otp", async (req: Request, res: Response): Promise<void> =>
   }
 })
 
+
+
+
+// ADD THESE ROUTES TO YOUR EXISTING authRoutes.ts file
+
+// ✅ Forgot Password - Send reset OTP
+router.post("/forgot-password", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body
+    
+    if (!email?.trim()) {
+      res.status(400).json({ error: "Email is required." })
+      return
+    }
+
+    console.log("🔑 Password reset requested for:", email)
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({ where: { email: email.trim() } })
+    if (!user) {
+      // Don't reveal if email exists or not for security
+      res.status(200).json({ message: "If an account with this email exists, you will receive a password reset code." })
+      return
+    }
+
+    // Generate and store OTP for password reset
+    const resetOtp = generateOtp()
+    otpStore[`reset_${email.trim()}`] = resetOtp // Use prefix to distinguish from registration OTPs
+
+    console.log("📧 Sending password reset OTP to:", email)
+
+    // Send password reset email
+    await sendEmail({
+      to: email.trim(),
+      subject: "Reset Your MuslimInfluencers.io Password",
+      text: `You requested a password reset for your MuslimInfluencers.io account.\n\nYour password reset code is: ${resetOtp}\n\nThis code will expire in 10 minutes.\n\nIf you didn't request this, please ignore this email and your password will remain unchanged.`,
+    })
+
+    res.status(200).json({ 
+      message: "If an account with this email exists, you will receive a password reset code." 
+    })
+
+  } catch (error: any) {
+    console.error("❌ Forgot password error:", error.message)
+    res.status(500).json({ error: "Failed to process password reset request. Please try again." })
+  }
+})
+
+// ✅ Verify Reset OTP and Reset Password
+router.post("/reset-password", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, otp, newPassword } = req.body
+    
+    if (!email?.trim() || !otp?.trim() || !newPassword) {
+      res.status(400).json({ error: "Email, OTP, and new password are required." })
+      return
+    }
+
+    if (newPassword.length < 6) {
+      res.status(400).json({ error: "Password must be at least 6 characters long." })
+      return
+    }
+
+    console.log("🔑 Password reset verification for:", email)
+
+    // Check if reset OTP is valid
+    const resetKey = `reset_${email.trim()}`
+    const storedOtp = otpStore[resetKey]
+    
+    if (!storedOtp || storedOtp !== otp.trim()) {
+      res.status(400).json({ error: "Invalid or expired reset code." })
+      return
+    }
+
+    // Find user
+    const user = await prisma.user.findUnique({ where: { email: email.trim() } })
+    if (!user) {
+      res.status(404).json({ error: "User not found." })
+      return
+    }
+
+    // Hash new password and update user
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+    
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword }
+    })
+
+    // Clean up the reset OTP
+    delete otpStore[resetKey]
+
+    console.log("✅ Password reset successful for user:", user.id)
+
+    res.status(200).json({ 
+      message: "Password reset successful. You can now login with your new password." 
+    })
+
+  } catch (error: any) {
+    console.error("❌ Reset password error:", error.message)
+    res.status(500).json({ error: "Failed to reset password. Please try again." })
+  }
+})
+
+// ✅ Resend Password Reset OTP
+router.post("/resend-reset-otp", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body
+    
+    if (!email?.trim()) {
+      res.status(400).json({ error: "Email is required." })
+      return
+    }
+
+    console.log("🔄 Resending password reset OTP for:", email)
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({ where: { email: email.trim() } })
+    if (!user) {
+      // Don't reveal if email exists or not for security
+      res.status(200).json({ message: "If an account with this email exists, you will receive a new password reset code." })
+      return
+    }
+
+    // Generate new reset OTP
+    const resetOtp = generateOtp()
+    otpStore[`reset_${email.trim()}`] = resetOtp
+
+    // Send new reset email
+    await sendEmail({
+      to: email.trim(),
+      subject: "New Password Reset Code - MuslimInfluencers.io",
+      text: `You requested a new password reset code for your MuslimInfluencers.io account.\n\nYour new password reset code is: ${resetOtp}\n\nThis code will expire in 10 minutes.\n\nIf you didn't request this, please ignore this email.`,
+    })
+
+    console.log("📧 New password reset OTP sent to:", email)
+
+    res.status(200).json({ 
+      message: "If an account with this email exists, you will receive a new password reset code." 
+    })
+
+  } catch (error: any) {
+    console.error("❌ Resend reset OTP error:", error.message)
+    res.status(500).json({ error: "Failed to resend password reset code. Please try again." })
+  }
+})
+
+
 // ✅ Health check endpoint
 router.get("/health", (req: Request, res: Response) => {
   res.status(200).json({ 
