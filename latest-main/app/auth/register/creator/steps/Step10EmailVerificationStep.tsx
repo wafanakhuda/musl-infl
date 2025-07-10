@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { CreatorFormData } from "../../../../../components/types/form"
 import { useRouter } from "next/navigation"
-import { useAuth } from "../../../../../hooks/use-auth" // ✅ Import useAuth
+import { useAuth } from "../../../../../hooks/use-auth" // ✅ ADD THIS IMPORT
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://latestbackend-3psc.onrender.com"
 
@@ -19,7 +19,7 @@ interface Step10Props {
 
 const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateForm, back }) => {
   const router = useRouter()
-  const { loginWithToken } = useAuth() // ✅ Get loginWithToken function
+  const { loginWithToken } = useAuth() // ✅ ADD THIS LINE
   const hasRegistered = useRef(false)
 
   const [isVerifying, setIsVerifying] = useState(false)
@@ -213,49 +213,36 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
 
       console.log("✅ OTP verification successful!")
 
-      // ✅ Save packages after successful verification (if token available)
+      // ✅ CRITICAL FIX: Auto-login after successful OTP verification
       if (verifyData.token) {
+        console.log("🔐 Auto-logging in user with token...")
+        
+        // Store the token first
+        localStorage.setItem("access_token", verifyData.token)
+        
+        // Use auth context to login with token
+        await loginWithToken(verifyData.token)
+        
+        // Save packages after successful verification
         const packagesSuccess = await savePackages(verifyData.token)
         if (!packagesSuccess) {
           console.warn("⚠️ Failed to save packages, but user is still registered")
         }
-      }
-
-      // ✅ AUTO LOGIN: Use the token to log the user in automatically
-      if (verifyData.token) {
-        console.log("🔐 Auto-logging in user with received token...")
-        
-        // Store the token
-        localStorage.setItem("access_token", verifyData.token)
-        
-        // Login with token using auth provider
-        await loginWithToken(verifyData.token)
-        
-        console.log("✅ Auto-login successful!")
         
         // Clear any stored registration data
         localStorage.removeItem("creator_registration_data")
         
-        // Show success message
-        toast.success("🎉 Account created successfully! Welcome to MuslimInfluencers.io!")
+        // ✅ SUCCESS: Show success message and redirect to dashboard
+        toast.success("🎉 Account created successfully! Welcome to your dashboard!")
         
-        // ✅ Redirect to dashboard instead of login page
+        // Redirect to creator dashboard after short delay
         setTimeout(() => {
-          router.push("/dashboard/creator")
+          console.log("🚀 Redirecting to creator dashboard")
+          router.push("/dashboard/creator") // ✅ GO TO DASHBOARD, NOT LOGIN
         }, 1500)
         
       } else {
-        // ✅ Fallback: No token received, redirect to login
-        console.warn("⚠️ No token received, redirecting to login")
-        
-        // Clear any stored registration data
-        localStorage.removeItem("creator_registration_data")
-        
-        toast.success("🎉 Account created successfully! Please login to continue.")
-        
-        setTimeout(() => {
-          router.push("/auth/login/creator")
-        }, 2000)
+        throw new Error("No authentication token received")
       }
       
     } catch (error: unknown) {
@@ -314,7 +301,7 @@ const Step10EmailVerificationStep: React.FC<Step10Props> = ({ formData, updateFo
             disabled={isVerifying || formData.otp.length !== 6}
           >
             {isVerifying && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-            {isVerifying ? "Verifying..." : "Verify & Complete Registration"}
+            {isVerifying ? "Verifying..." : "Verify & Access Dashboard"} {/* ✅ UPDATED BUTTON TEXT */}
           </Button>
           
           <p className="text-sm text-muted-foreground mt-4 text-center">
