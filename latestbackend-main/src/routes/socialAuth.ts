@@ -32,8 +32,10 @@ router.get("/google/callback", (req, res, next) => {
       userType: authResult?.user?.user_type
     })
     
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000"
-    
+const frontendUrl = process.env.FRONTEND_URL || 
+  (req.get('host')?.includes('localhost') 
+    ? "http://localhost:3000"
+    : "https://musl-infl.vercel.app")    
     if (err) {
       console.error('❌ OAuth error:', err)
       return res.redirect(`${frontendUrl}/auth/social?error=authentication_failed`)
