@@ -1,15 +1,15 @@
-// File: /app/auth/social/page.tsx (Updated Universal Version)
+// File: /app/auth/social/brand/page.tsx
 "use client"
 
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useAuth } from "../../../hooks/use-auth"
-import { Loader2, AlertCircle, CheckCircle, UserPlus, Building2 } from "lucide-react"
-import { Button } from "../../../components/ui/button"
-import { FloatingElements } from "../../../components/ui/floating-elements"
+import { useAuth } from "../../../../hooks/use-auth"
+import { Loader2, AlertCircle, CheckCircle, Building2 } from "lucide-react"
+import { Button } from "../../../../components/ui/button"
+import { FloatingElements } from "../../../../components/ui/floating-elements"
 import { toast } from "sonner"
 
-export default function SocialRedirectPage() {
+export default function BrandSocialRedirectPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
@@ -30,7 +30,7 @@ export default function SocialRedirectPage() {
         
         switch (error) {
           case 'authentication_failed':
-            errorMessage = 'Social authentication failed. Please try again.'
+            errorMessage = 'Google authentication failed. Please try again.'
             break
           case 'user_not_found':
             errorMessage = 'Account not found. Please sign up first.'
@@ -52,28 +52,32 @@ export default function SocialRedirectPage() {
 
       if (token) {
         try {
-          console.log('🔐 Processing OAuth token:', { userType, needsOnboarding, isNew })
+          console.log('🔐 Processing Brand OAuth token:', { needsOnboarding, userType, isNew })
           localStorage.setItem("access_token", token)
           await loginWithToken(token)
           
+          if (userType !== 'brand') {
+            setStatus('error')
+            setMessage('This account is not registered as a brand. Please use the correct login.')
+            toast.error('Account type mismatch. Please use the brand login.')
+            return
+          }
+
           if (needsOnboarding || isNew) {
             setStatus('needs_onboarding')
-            setMessage(`Welcome! Let's complete your ${userType} profile to get started.`)
+            setMessage('Welcome! Let\'s complete your brand profile to get started.')
             toast.success('Account connected successfully! Please complete your profile.')
           } else {
             setStatus('success')
-            setMessage('Login successful! Redirecting to dashboard...')
+            setMessage('Login successful! Redirecting to brand dashboard...')
             toast.success('Welcome back!')
-            
-            // Redirect based on user type
             setTimeout(() => {
-              const dashboardPath = userType === "brand" ? "/dashboard/brand" : "/dashboard/creator"
-              router.replace(dashboardPath)
+              router.replace("/dashboard/brand")
             }, 1500)
           }
           
         } catch (err: any) {
-          console.error('OAuth login error:', err)
+          console.error('Brand OAuth login error:', err)
           setStatus('error')
           setMessage('Failed to complete login. Please try again.')
           toast.error('Login failed. Please try again.')
@@ -89,43 +93,12 @@ export default function SocialRedirectPage() {
   }, [token, error, needsOnboarding, userType, isNew, loginWithToken, router])
 
   const handleContinueOnboarding = () => {
-    const onboardingPath = userType === "brand" 
-      ? '/auth/register/brand?step=2&oauth=true'
-      : '/auth/register/creator?step=2&oauth=true'
-    router.push(onboardingPath)
-  }
-
-  const handleSkipOnboarding = () => {
-    const dashboardPath = userType === "brand" ? "/dashboard/brand" : "/dashboard/creator"
-    router.push(dashboardPath)
+    router.push('/auth/register/brand?step=2&oauth=true')
   }
 
   const handleRetryLogin = () => {
-    const loginPath = userType === "brand" ? '/auth/login/brand' : '/auth/login/creator'
-    router.push(loginPath)
+    router.push('/auth/login/brand')
   }
-
-  const handleSignupInstead = () => {
-    const signupPath = userType === "brand" ? '/auth/register/brand' : '/auth/register/creator'
-    router.push(signupPath)
-  }
-
-  const getUserTypeIcon = () => {
-    return userType === "brand" ? Building2 : UserPlus
-  }
-
-  const getUserTypeColor = () => {
-    return userType === "brand" ? "purple" : "teal"
-  }
-
-  const getUserTypeGradient = () => {
-    return userType === "brand" 
-      ? "from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-      : "from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600"
-  }
-
-  const IconComponent = getUserTypeIcon()
-  const color = getUserTypeColor()
 
   return (
     <main className="relative min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-950 text-white overflow-hidden">
@@ -136,7 +109,7 @@ export default function SocialRedirectPage() {
           
           {status === 'loading' && (
             <div className="space-y-4">
-              <Loader2 className={`w-12 h-12 animate-spin mx-auto text-${color}-400`} />
+              <Loader2 className="w-12 h-12 animate-spin mx-auto text-purple-400" />
               <h2 className="text-xl font-semibold">Authenticating...</h2>
               <p className="text-slate-400">Please wait while we sign you in</p>
             </div>
@@ -155,22 +128,20 @@ export default function SocialRedirectPage() {
 
           {status === 'needs_onboarding' && (
             <div className="space-y-6">
-              <IconComponent className={`w-12 h-12 mx-auto text-${color}-400`} />
+              <Building2 className="w-12 h-12 mx-auto text-purple-400" />
               <div className="space-y-2">
-                <h2 className={`text-xl font-semibold text-${color}-400`}>
-                  Welcome to the platform!
-                </h2>
+                <h2 className="text-xl font-semibold text-purple-400">Welcome to the platform!</h2>
                 <p className="text-slate-400">{message}</p>
               </div>
               <div className="space-y-3">
                 <Button 
                   onClick={handleContinueOnboarding}
-                  className={`w-full bg-gradient-to-r ${getUserTypeGradient()}`}
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                 >
-                  Complete {userType === "brand" ? "Brand" : "Creator"} Profile
+                  Complete Brand Profile
                 </Button>
                 <Button 
-                  onClick={handleSkipOnboarding}
+                  onClick={() => router.push('/dashboard/brand')}
                   variant="outline"
                   className="w-full border-white/20 text-white hover:bg-white/10"
                 >
@@ -190,42 +161,17 @@ export default function SocialRedirectPage() {
               <div className="space-y-3">
                 <Button 
                   onClick={handleRetryLogin}
-                  className={`w-full bg-gradient-to-r ${getUserTypeGradient()}`}
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                 >
                   Try Again
                 </Button>
                 <Button 
-                  onClick={handleSignupInstead}
+                  onClick={() => router.push('/auth/register/brand')}
                   variant="outline"
                   className="w-full border-white/20 text-white hover:bg-white/10"
                 >
                   Sign Up Instead
                 </Button>
-              </div>
-              
-              {/* Additional help section */}
-              <div className="pt-4 border-t border-white/10">
-                <p className="text-xs text-slate-500 mb-3">
-                  Need to try a different account type?
-                </p>
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => router.push('/auth/login/creator')}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-xs border-teal-500/30 text-teal-400 hover:bg-teal-500/10"
-                  >
-                    Creator Login
-                  </Button>
-                  <Button 
-                    onClick={() => router.push('/auth/login/brand')}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-xs border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
-                  >
-                    Brand Login
-                  </Button>
-                </div>
               </div>
             </div>
           )}

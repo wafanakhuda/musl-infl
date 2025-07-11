@@ -41,7 +41,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>
   loginWithToken: (token: string) => Promise<void>
   register: (payload: RegisterPayload) => Promise<void>
-  logout: () => void
+  logout: (redirectTo?: string) => Promise<void>
   updateProfile: (userData: Partial<User>) => Promise<void>
   checkProfileCompletion: () => Promise<boolean>
   refreshUser: () => Promise<void>
@@ -53,9 +53,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true) // ✅ START WITH LOADING=TRUE
+  const [loading, setLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isInitialized, setIsInitialized] = useState(false) // ✅ TRACK INITIALIZATION
+  const [isInitialized, setIsInitialized] = useState(false)
   const router = useRouter()
 
   const login = async (email: string, password: string): Promise<boolean> => {
@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Login failed")
 
-      // ✅ Store both token and user data
+      // Store both token and user data
       localStorage.setItem("access_token", data.token)
       localStorage.setItem("auth_user", JSON.stringify(data.user))
       
@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to fetch user")
 
-      // ✅ Store both token and user data
+      // Store both token and user data
       localStorage.setItem("access_token", token)
       localStorage.setItem("auth_user", JSON.stringify(data))
       
@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error("Token auth failed:", error)
       toast.error("Authentication failed")
-      logout() // Clear invalid auth state
+      await logout() // Use the enhanced logout
     } finally {
       setLoading(false)
     }
@@ -151,53 +151,133 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const logout = () => {
-    console.log('🚪 Logging out user')
-    
-    // Clear user state immediately
-    setUser(null)
-    setIsAuthenticated(false)
-    
-    // ✅ Clear all auth-related localStorage items
-    const authKeys = [
-      "access_token",
-      "auth_user", 
-      "creator_registration_data",
-      "pending_email",
-      "oauth_provider",
-      "temp_token"
-    ]
-    
-    authKeys.forEach(key => {
-      try {
-        localStorage.removeItem(key)
-      } catch (error) {
-        console.warn(`Failed to remove ${key} from localStorage:`, error)
+  // ✅ ENHANCED UNIVERSAL LOGOUT FUNCTION
+  const logout = async (redirectTo?: string) => {
+    try {
+      setLoading(true)
+      console.log('🚪 Starting universal logout process...')
+      
+      const token = localStorage.getItem("access_token")
+      
+      // 1. Call backend logout to clear server sessions (both OAuth and regular)
+      if (token) {
+        try {
+          console.log('🔐 Clearing backend session...')
+          await Promise.race([
+            fetch(`${API_URL}/auth/logout`, {
+              method: 'POST',
+              headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              credentials: 'include'
+            }),
+            // Timeout after 3 seconds to prevent hanging
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+          ])
+          console.log('✅ Backend session cleared')
+        } catch (error) {
+          console.warn('⚠️ Backend logout failed (continuing with local logout):', error)
+          // Continue with local logout even if backend fails
+        }
       }
-    })
-    
-    // For OAuth users, also try to call backend logout
-    const logoutBackend = async () => {
+
+      // 2. Clear user state immediately
+      setUser(null)
+      setIsAuthenticated(false)
+      
+      // 3. Clear all auth-related localStorage items (comprehensive cleanup)
+      const authKeys = [
+        "access_token",
+        "auth_user", 
+        "creator_registration_data",
+        "brand_registration_data",
+        "pending_email",
+        "oauth_provider",
+        "temp_token",
+        "user_preferences",
+        "session_data",
+        "refresh_token"
+      ]
+      
+      authKeys.forEach(key => {
+        try {
+          localStorage.removeItem(key)
+        } catch (error) {
+          console.warn(`Failed to remove ${key} from localStorage:`, error)
+        }
+      })
+      
+      // 4. Clear sessionStorage completely
       try {
-        await fetch(`${API_URL}/auth/logout`, {
-          method: 'POST',
-          credentials: 'include'
-        })
+        sessionStorage.clear()
+        console.log('✅ Session storage cleared')
       } catch (error) {
-        console.warn('Backend logout failed:', error)
+        console.warn('⚠️ Failed to clear session storage:', error)
       }
+
+      // 5. Clear cookies (for OAuth and other session cookies)
+      if (typeof window !== 'undefined') {
+        try {
+          // Get all cookies and clear them
+          document.cookie.split(";").forEach((cookie) => {
+            const eqPos = cookie.indexOf("=")
+            const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim()
+            
+            // Clear for current domain and common paths
+            const clearCookie = (domain = "", path = "") => {
+              document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=${path};domain=${domain}`
+            }
+            
+            clearCookie("", "/")
+            clearCookie("", "/auth")
+            clearCookie("", "/dashboard")
+            clearCookie(window.location.hostname, "/")
+            clearCookie(`.${window.location.hostname}`, "/")
+          })
+          console.log('✅ Cookies cleared')
+        } catch (error) {
+          console.warn('⚠️ Failed to clear cookies:', error)
+        }
+      }
+
+      // 6. Clear any cached API responses (if using any caching)
+      if ('caches' in window) {
+        try {
+          const cacheNames = await caches.keys()
+          await Promise.all(
+            cacheNames.map(cacheName => caches.delete(cacheName))
+          )
+          console.log('✅ Cache storage cleared')
+        } catch (error) {
+          console.warn('⚠️ Failed to clear cache storage:', error)
+        }
+      }
+
+      console.log('✅ Universal logout completed successfully')
+      
+      // 7. Redirect based on user preference or default to home
+      const destination = redirectTo || "/"
+      console.log(`🏠 Redirecting to: ${destination}`)
+      router.push(destination)
+      
+      // 8. Show success message
+      toast.success("Logged out successfully")
+      
+    } catch (error) {
+      console.error('❌ Logout error:', error)
+      // Even if logout fails, still clear local state and redirect
+      setUser(null)
+      setIsAuthenticated(false)
+      localStorage.clear()
+      router.push("/")
+      toast.error("Logout completed with some errors")
+    } finally {
+      setLoading(false)
     }
-    
-    logoutBackend()
-    
-    // Always redirect to home page
-    console.log('🏠 Redirecting to home page')
-    router.push("/")
-    
-    toast.success("Logged out successfully")
   }
 
-  // ✅ Enhanced updateProfile function for OAuth onboarding
+  // Enhanced updateProfile function for OAuth onboarding
   const updateProfile = async (userData: Partial<User>) => {
     try {
       setLoading(true)
@@ -218,7 +298,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to update profile")
 
-      // ✅ Update local user state
+      // Update local user state
       const updatedUser = data.user
       setUser(updatedUser)
       localStorage.setItem("auth_user", JSON.stringify(updatedUser))
@@ -235,7 +315,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // ✅ Check profile completion status
+  // Check profile completion status
   const checkProfileCompletion = async (): Promise<boolean> => {
     try {
       const token = localStorage.getItem("access_token")
@@ -268,7 +348,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // ✅ ENHANCED INITIALIZATION - This is the key fix for auth persistence
+  // ENHANCED INITIALIZATION - This is the key fix for auth persistence
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -282,7 +362,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const userData = JSON.parse(savedUser)
             console.log('🔄 Found saved user data:', userData.email)
             
-            // ✅ Verify token is still valid
+            // Verify token is still valid
             const res = await fetch(`${API_URL}/users/me`, {
               headers: { Authorization: `Bearer ${token}` }
             })
@@ -296,11 +376,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               console.log('✅ Auth state restored successfully')
             } else {
               console.warn('⚠️ Saved token invalid, clearing session')
-              logout()
+              await logout()
             }
           } catch (parseError) {
             console.error('❌ Error parsing saved user data:', parseError)
-            logout()
+            await logout()
           }
         } else if (token) {
           // Have token but no user data, fetch user
@@ -311,7 +391,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error('❌ Auth initialization error:', error)
-        logout() // Clear potentially corrupted data
+        await logout() // Clear potentially corrupted data
       } finally {
         setLoading(false)
         setIsInitialized(true)
@@ -319,13 +399,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     
-    // ✅ Only initialize once
+    // Only initialize once
     if (!isInitialized) {
       initAuth()
     }
-  }, [isInitialized]) // Only depend on isInitialized
+  }, [isInitialized])
 
-  // ✅ Don't render children until auth is initialized
+  // Don't render children until auth is initialized
   if (!isInitialized) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
