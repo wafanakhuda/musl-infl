@@ -10,15 +10,12 @@ interface Props {
 export function LayoutWrapper({ children }: Props) {
   const pathname = usePathname()
 
-  const isCreatorRoute =
-    pathname?.startsWith("/dashboard/creator") ||
-    pathname?.startsWith("/messages") ||
-    pathname?.startsWith("/settings") ||
-    pathname?.startsWith("/portfolio")
+  // ✅ Only exclude navigation from auth pages
+  const hideNavigation = pathname?.startsWith("/auth/")
 
   return (
     <>
-      {!isCreatorRoute && <Navigation />}
+      {!hideNavigation && <Navigation />}
       {children}
     </>
   )
