@@ -58,39 +58,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false)
   const router = useRouter()
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    try {
-      setLoading(true)
-      console.log('🔐 Attempting login for:', email)
-      
-      const res = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      })
+// In your use-auth.tsx file, update the login function:
 
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Login failed")
+const login = async (email: string, password: string): Promise<boolean> => {
+  try {
+    setLoading(true)
+    console.log('🔐 Attempting login for:', email)
+    
+    const res = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    })
 
-      // Store both token and user data
-      localStorage.setItem("access_token", data.token)
-      localStorage.setItem("auth_user", JSON.stringify(data.user))
-      
-      setUser(data.user)
-      setIsAuthenticated(true)
-      
-      console.log('✅ Login successful for:', data.user.email)
-      toast.success(`Welcome back, ${data.user.full_name}!`)
-      
-      return true
-    } catch (error: any) {
-      console.error("Login error:", error)
-      toast.error(error.message || "Login failed")
-      return false
-    } finally {
-      setLoading(false)
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || "Login failed")
+
+    // Store both token and user data
+    localStorage.setItem("access_token", data.token)
+    localStorage.setItem("auth_user", JSON.stringify(data.user))
+    
+    setUser(data.user)
+    setIsAuthenticated(true)
+    
+    console.log('✅ Login successful for:', data.user.email)
+    toast.success(`Welcome back, ${data.user.full_name}!`)
+    
+    // ✅ FIXED: Redirect based on user type
+    if (data.user.user_type === "brand") {
+      router.push("/dashboard/brand")
+    } else {
+      router.push("/dashboard/creator")
     }
+    
+    return true
+  } catch (error: any) {
+    console.error("Login error:", error)
+    toast.error(error.message || "Login failed")
+    return false
+  } finally {
+    setLoading(false)
   }
+}
 
   const loginWithToken = async (token: string) => {
     try {
