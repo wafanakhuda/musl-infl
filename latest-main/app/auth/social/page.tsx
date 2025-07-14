@@ -63,14 +63,10 @@ export default function SocialRedirectPage() {
           } else {
             setStatus('success')
             setMessage('Login successful! Redirecting to dashboard...')
-            toast.success('Welcome back!')
+            toast.success('Welcome back!')}
             
             // Redirect based on user type
-            setTimeout(() => {
-              const dashboardPath = userType === "brand" ? "/dashboard/brand" : "/dashboard/creator"
-              router.replace(dashboardPath)
-            }, 1500)
-          }
+           
           
         } catch (err: any) {
           console.error('OAuth login error:', err)
