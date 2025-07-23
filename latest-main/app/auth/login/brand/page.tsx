@@ -13,7 +13,7 @@ import { toast } from "sonner"
 
 export default function BrandLoginPage() {
   const router = useRouter()
-  const { loginWithToken } = useAuth()
+  const { login } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -26,24 +26,11 @@ export default function BrandLoginPage() {
     setLoading(true)
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Login failed")
-
-      localStorage.setItem("access_token", data.token)
-      await loginWithToken(data.token)
-
-      if (data.user?.user_type === "brand") {
-        toast.success("Welcome back!")
-        router.replace("/dashboard/brand")
-      } else {
-        throw new Error("Invalid account type")
+      const success = await login(email, password)
+      if (!success) {
+        throw new Error("Login failed")
       }
+      // The login function will handle the redirect to brand dashboard
     } catch (err: any) {
       setError(err.message || "Login failed")
       toast.error(err.message || "Login failed")

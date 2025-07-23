@@ -11,7 +11,7 @@ import {
   SelectItem,
 } from "../../components/ui/select"
 import { FloatingElements } from "../../components/ui/floating-elements"
-import { FooterCTA } from "../../components/ui/footer-cta"
+import { FooterCTA } from "../../lib/FooterCTA"
 import { Button } from "../../components/ui/button"
 import { Loader2 } from "lucide-react"
 import CreatorCard from "../../components/creator-card"
@@ -29,10 +29,13 @@ export default function CreatorsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  console.log("CreatorsPage: Component rendered", { loading, error, creatorsCount: creators.length })
+
   const fetchCreators = async () => {
     try {
       setLoading(true)
       setError(null)
+      console.log("CreatorsPage: Starting to fetch creators...")
 
       const filters = {
         search,
@@ -44,7 +47,9 @@ export default function CreatorsPage() {
         maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
       }
 
+      console.log("CreatorsPage: Fetching with filters", filters)
       const data = await apiClient.getCreators(filters)
+      console.log("CreatorsPage: Received data", data)
       setCreators(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error("Fetch creators failed", err)
@@ -55,9 +60,16 @@ export default function CreatorsPage() {
   }
 
   useEffect(() => {
-    const debouncedFetch = debounce(fetchCreators, 400)
-    debouncedFetch()
-    return () => debouncedFetch.cancel()
+    // Initial load
+    fetchCreators()
+  }, [])
+
+  useEffect(() => {
+    if (search.trim()) {
+      const debouncedFetch = debounce(fetchCreators, 400)
+      debouncedFetch()
+      return () => debouncedFetch.cancel()
+    }
   }, [search])
 
   useEffect(() => {
@@ -68,7 +80,7 @@ export default function CreatorsPage() {
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 to-slate-950 text-white">
       <FloatingElements />
 
-      <main className="relative z-10 min-h-screen pb-32 container mx-auto px-4 py-12">
+      <main className="relative z-10 min-h-screen pb-32 container mx-auto px-4 pt-20 py-12">
         <h1 className="text-3xl font-bold text-center mb-6">
           Find <span className="text-primary">Muslim Creators</span>
         </h1>

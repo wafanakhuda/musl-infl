@@ -196,6 +196,11 @@ class ApiClient {
     return res.data
   }
 
+  async getCreatorById(id: string): Promise<User> {
+    const res = await this.client.get(`/creators/${id}`)
+    return res.data
+  }
+
   async getCampaigns(filters?: any): Promise<Campaign[]> {
     const res = await this.client.get("/campaigns", { params: filters })
     return res.data

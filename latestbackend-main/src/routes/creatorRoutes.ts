@@ -17,6 +17,48 @@ router.get("/", async (req: Request, res: Response) => {
   }
 })
 
+// ✅ Get specific creator by ID - /creators/:id
+router.get("/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params
+
+    const creator = await prisma.user.findUnique({
+      where: { 
+        id,
+        user_type: "creator" // Ensure we only return creators
+      },
+      select: {
+        id: true,
+        email: true,
+        full_name: true,
+        user_type: true,
+        avatar_url: true,
+        bio: true,
+        location: true,
+        niche: true,
+        followers: true,
+        price_min: true,
+        price_max: true,
+        platforms: true,
+        website: true,
+        email_verified: true,
+        verified: true,
+        created_at: true,
+      }
+    })
+
+    if (!creator) {
+      res.status(404).json({ error: "Creator not found" })
+      return
+    }
+
+    res.json(creator)
+  } catch (err) {
+    console.error("Error fetching creator:", err)
+    res.status(500).json({ error: "Failed to fetch creator" })
+  }
+})
+
 // ✅ Create packages for a creator - /creators/packages
 router.post("/packages", authenticateToken, async (req: Request, res: Response) => {
   try {

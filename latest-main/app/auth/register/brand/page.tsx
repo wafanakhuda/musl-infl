@@ -57,8 +57,9 @@ export default function BrandRegisterPage() {
           annual_budget: formData.budget,
         },
       })
-      toast.success("Brand registered successfully!")
-      router.push("/dashboard/brand")
+      toast.success("Brand registered successfully! Please check your email for verification.")
+      // No need to redirect here - the register function will handle OTP verification redirect
+      // After OTP verification, user will be redirected to brand dashboard automatically
     } catch (error: any) {
       toast.error(error.message || "Registration failed")
     } finally {
