@@ -14,7 +14,7 @@ export const sendMessage = async (
   if (!conversation) throw new Error('Conversation not found')
 
   const isParticipant = conversation.participants.some(
-    (p) => p.userId === senderId
+    (p: { userId: string }) => p.userId === senderId
   )
   if (!isParticipant) throw new Error('User not a participant in this conversation')
 
@@ -49,7 +49,7 @@ export const getMessagesByConversationId = async (
   if (!conversation) throw new Error('Conversation not found')
 
   const isParticipant = conversation.participants.some(
-    (p) => p.userId === userId
+    (p: { userId: string }) => p.userId === userId
   )
   if (!isParticipant) throw new Error('Access denied')
 

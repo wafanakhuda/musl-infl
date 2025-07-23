@@ -31,26 +31,95 @@ export default function PublicProfilePage() {
   const { id } = useParams()
   const [creator, setCreator] = useState<User | null>(null)
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const user = await apiClient.get(`/creators/${id}`)
-        const portfolioItems = await apiClient.get(`/portfolio/public/${id}`)
+        setLoading(true)
+        setError(null)
+        console.log("🔍 Fetching creator profile for ID:", id)
+        
+        // Use direct fetch instead of apiClient for debugging
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
+        
+        const userResponse = await fetch(`${API_URL}/creators/${id}`)
+        console.log("📡 Creator API Response status:", userResponse.status)
+        
+        if (!userResponse.ok) {
+          throw new Error(`Creator not found (${userResponse.status})`)
+        }
+        
+        const user = await userResponse.json()
+        console.log("✅ Creator data received:", user)
         setCreator(user)
-        setPortfolio(portfolioItems)
-      } catch (err) {
-        console.error("Failed to fetch creator", err)
+        
+        // Try to fetch portfolio
+        try {
+          const portfolioResponse = await fetch(`${API_URL}/portfolio/public/${id}`)
+          if (portfolioResponse.ok) {
+            const portfolioItems = await portfolioResponse.json()
+            setPortfolio(Array.isArray(portfolioItems) ? portfolioItems : [])
+          }
+        } catch (portfolioErr) {
+          console.warn("⚠️ Portfolio fetch failed:", portfolioErr)
+          setPortfolio([])
+        }
+        
+      } catch (err: any) {
+        console.error("❌ Failed to fetch creator:", err)
+        setError(err.message || "Failed to load creator profile")
+        setCreator(null)
+      } finally {
+        setLoading(false)
       }
     }
 
     if (id) fetchData()
   }, [id])
 
-  if (!creator) return <div className="text-white p-10">Loading...</div>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black text-white pt-20 pb-12 px-4 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+          <p>Loading creator profile...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-black text-white pt-20 pb-12 px-4 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Creator Not Found</h2>
+          <p className="text-gray-400 mb-4">{error}</p>
+          <a href="/creators" className="text-blue-400 hover:underline">
+            ← Back to Creators
+          </a>
+        </div>
+      </div>
+    )
+  }
+
+  if (!creator) {
+    return (
+      <div className="min-h-screen bg-black text-white pt-20 pb-12 px-4 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Creator Not Found</h2>
+          <p className="text-gray-400 mb-4">The creator you're looking for doesn't exist.</p>
+          <a href="/creators" className="text-blue-400 hover:underline">
+            ← Back to Creators
+          </a>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-black text-white py-12 px-4">
+    <div className="min-h-screen bg-black text-white pt-20 pb-12 px-4">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
           <img

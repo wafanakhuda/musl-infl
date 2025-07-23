@@ -148,8 +148,9 @@ const login = async (email: string, password: string): Promise<boolean> => {
       console.log('✅ Registration successful')
       toast.success("Registration successful!")
       
-      // Store email for OTP verification
+      // Store email and user type for OTP verification
       localStorage.setItem("pending_email", payload.email)
+      localStorage.setItem("pending_user_type", payload.user_type)
       router.push("/auth/verify-otp")
     } catch (error: any) {
       console.error("Registration error:", error)
@@ -202,6 +203,7 @@ const login = async (email: string, password: string): Promise<boolean> => {
         "creator_registration_data",
         "brand_registration_data",
         "pending_email",
+        "pending_user_type",
         "oauth_provider",
         "temp_token",
         "user_preferences",

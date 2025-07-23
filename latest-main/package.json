@@ -6,7 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "env:dev": "node switch-env.js dev",
+    "env:prod": "node switch-env.js prod",
+    "env:staging": "node switch-env.js staging",
+    "env:switch": "node switch-env.js",
+    "dev:local": "npm run env:dev && npm run dev",
+    "dev:staging": "npm run env:staging && npm run dev",
+    "build:prod": "npm run env:prod && npm run build"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",

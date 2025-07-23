@@ -13,6 +13,8 @@ import { WhyChooseUs } from "../components/ui/why-choose-us"
 import CreatorCard from "../components/creator-card"
 import { useEffect, useState } from "react"
 import { apiClient, User } from "../lib/api-client"
+import { generateWebsiteSchema } from "../lib/seo"
+import Head from "next/head"
 
 export default function HomePage() {
   const [creators, setCreators] = useState<User[]>([])

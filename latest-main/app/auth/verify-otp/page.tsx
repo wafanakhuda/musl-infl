@@ -57,6 +57,7 @@ export default function VerifyOtpPage() {
       localStorage.setItem("access_token", data.token)
       await loginWithToken(data.token)
       localStorage.removeItem("pending_email")
+      localStorage.removeItem("pending_user_type") // Clean up the user type as well
 
       // Show success and redirect to role-based dashboard
       setSuccess(true)
