@@ -24,7 +24,7 @@ import session from "express-session"
 import passport from "passport"
 import uploadRoutes from "./routes/uploadRoutes"
 import socialAuthRoutes from "./routes/socialAuth"
-
+import cartRoutes from './routes/cartRoutes'
 const app = express()
 const server = http.createServer(app)
 
@@ -74,7 +74,7 @@ app.use("/stripe", stripeRoutes)
 app.use("/analytics", analyticsRoutes)
 app.use("/dashboard", dashboardRoutes)
 app.use("/creators", creatorRoutes)
-
+app.use('/api/cart', cartRoutes)
 // ✅ Socket.IO setup
 const io = new Server(server, {
   cors: {

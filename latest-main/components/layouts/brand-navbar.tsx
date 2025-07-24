@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Menu, ShoppingCart, User } from "lucide-react"
+import { Menu, User } from "lucide-react"
 import { useAuth } from "../../hooks/use-auth"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import {
@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu"
+import { CartDrawer } from "../cart/cart-drawer"  // NEW: Import cart drawer
 
 export default function BrandNavigation() {
   const { user, logout } = useAuth()
@@ -50,10 +51,8 @@ export default function BrandNavigation() {
             Post a Campaign
           </Link>
 
-          {/* Cart Button with ARIA Label */}
-          <button aria-label="View Cart" className="text-black hover:opacity-75">
-            <ShoppingCart className="w-6 h-6" />
-          </button>
+          {/* UPDATED: Cart Drawer instead of static button */}
+          <CartDrawer />
 
           {/* Avatar Dropdown */}
           <DropdownMenu>

@@ -1,9 +1,13 @@
+// File: latest-main/app/layout.tsx
+
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { AuthProvider } from "../hooks/use-auth"
+import { CartProvider } from "../hooks/use-cart"  // ADD THIS IMPORT
 import { LayoutWrapper } from "../components/layout-wrapper"
 import { generateMetadata, generateOrganizationSchema, generateWebsiteSchema, pageMetadata } from "../lib/seo"
+import { Toaster } from "sonner"  // ADD THIS IMPORT
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -12,7 +16,7 @@ export const metadata: Metadata = generateMetadata(pageMetadata.home)
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const organizationSchema = generateOrganizationSchema()
   const websiteSchema = generateWebsiteSchema()
-
+  
   return (
     <html lang="en">
       <head>
@@ -40,9 +44,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${inter.className} bg-slate-900 text-white`}>
         <AuthProvider>
-          <LayoutWrapper>
-            {children}
-          </LayoutWrapper>
+          <CartProvider>
+            <LayoutWrapper>
+              {children}
+            </LayoutWrapper>
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: '#1e293b',
+                  color: '#f1f5f9',
+                  border: '1px solid #334155',
+                },
+              }}
+            />
+          </CartProvider>
         </AuthProvider>
       </body>
     </html>

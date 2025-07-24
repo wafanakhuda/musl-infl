@@ -37,6 +37,7 @@ model User {
   engagement                  Engagement?               @relation("CreatorEngagement")
   messages                    Message[]
   packages                    Package[]
+  cart                    Cart?
   portfolioItems              PortfolioItem[]
   reviewsReceived             Review[]                  @relation("CreatorReviews")
   reviewsGiven                Review[]                  @relation("ReviewsByUsers")
@@ -173,7 +174,31 @@ model SearchLog {
   timestamp DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
 }
+// NEW: Cart models
+model Cart {
+  id         String     @id @default(uuid())
+  userId     String     @unique
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items      CartItem[]
+}
 
+model CartItem {
+  id          String   @id @default(uuid())
+  cartId      String
+  productType String   // 'campaign' or 'package'
+  productId   String   // campaignId or packageId
+  quantity    Int      @default(1)
+  price       Int      // Price in cents
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  cart        Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productType, productId])
+  @@index([cartId])
+  @@index([productType, productId])
+}
 enum UserRole {
   creator
   brand

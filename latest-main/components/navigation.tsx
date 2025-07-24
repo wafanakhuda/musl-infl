@@ -25,6 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu"
+import { CartDrawer } from "./cart/cart-drawer"  // NEW: Import cart drawer
 
 export function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -100,28 +101,33 @@ export function Navigation() {
           {/* Right side: Avatar or Auth */}
           <div className="hidden md:flex items-center gap-3">
             {isAuthenticated && user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger>
-                  <Avatar className="h-8 w-8 cursor-pointer">
-                    <AvatarImage src={user.avatar_url || ""} alt={user.full_name} />
-                    <AvatarFallback>{user.full_name?.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-48 bg-slate-800 border border-slate-700 text-white">
-                  <DropdownMenuItem onClick={() => router.push("/dashboard")}>
-                    <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push("/profile")}>
-                    <User className="w-4 h-4 mr-2" /> Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push("/settings")}>
-                    <Settings className="w-4 h-4 mr-2" /> Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="w-4 h-4 mr-2" /> Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <>
+                {/* NEW: Cart Drawer for authenticated users */}
+                <CartDrawer />
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger>
+                    <Avatar className="h-8 w-8 cursor-pointer">
+                      <AvatarImage src={user.avatar_url || ""} alt={user.full_name} />
+                      <AvatarFallback>{user.full_name?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-48 bg-slate-800 border border-slate-700 text-white">
+                    <DropdownMenuItem onClick={() => router.push("/dashboard")}>
+                      <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/profile")}>
+                      <User className="w-4 h-4 mr-2" /> Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/settings")}>
+                      <Settings className="w-4 h-4 mr-2" /> Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut className="w-4 h-4 mr-2" /> Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
               <>
                 <Link href="/auth/login/creator" className="text-sm font-medium text-white hover:underline">
@@ -166,6 +172,10 @@ export function Navigation() {
                         <AvatarFallback>{user.full_name?.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div className="text-white font-medium">{user.full_name}</div>
+                      {/* NEW: Cart Drawer for mobile authenticated users */}
+                      <div className="ml-auto">
+                        <CartDrawer />
+                      </div>
                     </div>
                     <Link href="/dashboard" className="text-white hover:underline">Dashboard</Link>
                     <Link href="/profile" className="text-white hover:underline">Profile</Link>

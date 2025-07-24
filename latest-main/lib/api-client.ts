@@ -33,6 +33,40 @@ export interface User {
   niche?: string
 }
 
+export interface CartItem {
+  id: string
+  productType: 'campaign' | 'package'
+  productId: string
+  quantity: number
+  price: number
+  product?: {
+    id: string
+    title: string
+    description: string
+    budget?: number
+    price?: number
+    brand?: { 
+      id: string
+      full_name: string
+      avatar_url: string 
+    }
+    creator?: { 
+      id: string
+      full_name: string
+      avatar_url: string 
+    }
+  }
+}
+
+export interface Cart {
+  id: string
+  userId: string
+  items: CartItem[]
+  totalItems: number
+  totalPrice: number
+  created_at: Date
+  updated_at: Date
+}
 export interface AdminUser extends User {
   last_login: string | null
 }
@@ -327,6 +361,41 @@ class ApiClient {
     const res = await this.client.post(`/admin/campaigns/${id}/moderate`, { action, reason })
     return res.data
   }
+
+   async getCart(): Promise<Cart> {
+    const res = await this.client.get("/cart")
+    return res.data
+  }
+
+  async addToCart(productType: 'campaign' | 'package', productId: string, quantity: number = 1): Promise<{ message: string; cart: Cart }> {
+    const res = await this.client.post("/cart/add", {
+      productType,
+      productId,
+      quantity
+    })
+    return res.data
+  }
+
+  async updateCartItem(itemId: string, quantity: number): Promise<{ message: string; cart: Cart }> {
+    const res = await this.client.put(`/cart/items/${itemId}`, { quantity })
+    return res.data
+  }
+
+  async removeFromCart(itemId: string): Promise<{ message: string; cart: Cart }> {
+    const res = await this.client.delete(`/cart/items/${itemId}`)
+    return res.data
+  }
+
+  async clearCart(): Promise<{ message: string }> {
+    const res = await this.client.delete("/cart/clear")
+    return res.data
+  }
+
+  async getCartItemCount(): Promise<{ count: number }> {
+    const res = await this.client.get("/cart/count")
+    return res.data
+  }
+
 
   async getAdminDashboard(): Promise<any> {
     const res = await this.client.get("/admin/dashboard")
